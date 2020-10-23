@@ -1,6 +1,7 @@
-# abclj
+# Armed Bear Clojure: Dead easy bidings for Common Lisp
 
-A Clojure library designed to ... well, that part is up to you.
+## Why??
+Why not?
 
 ## Usage
 

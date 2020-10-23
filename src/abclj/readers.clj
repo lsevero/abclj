@@ -1,6 +1,6 @@
 (ns abclj.readers
   (:require [clojure.string :as str])
-  (:import [org.armedbear.lisp Lisp Interpreter LispInteger Fixnum Ratio DoubleFloat SingleFloat Complex Symbol Nil]
+  (:import [org.armedbear.lisp Lisp Interpreter LispInteger Fixnum Ratio DoubleFloat SingleFloat Complex Symbol Nil Packages]
            [java.io Writer]))
 
 (Interpreter/createInstance)
@@ -59,11 +59,12 @@
 
 (defn cl-complex
   [form]
+  (prn form)
   (if (and (sequential? form)
            (= 2 (count form))
            (every? number? form))
     (let [[r i] form]
-     (Complex/getInstance r i))
+     (Complex/getInstance (cl-double r) (cl-double i)))
     (throw (ex-info "Form should be a sequential of size 2 with numbers only!" {:form form}))))
 
 (defmethod print-method Complex
@@ -82,10 +83,11 @@
   [form]
   (if (symbol? form)
     (let [ns-form (namespace form)
-          name-form (name form)]
-      (if (nil? ns-form)
-        (Symbol. name-form Lisp/PACKAGE_CL_USER)
-        (Symbol. name-form nil)))
+          name-form (name form)
+          ^org.armedbear.lisp.Package pkg (if-not (nil? ns-form)
+                                            (-> ns-form str/upper-case Packages/findPackage)
+                                            Lisp/PACKAGE_CL_USER)]
+        (.intern pkg name-form))
     (throw (ex-info "Form should be a symbol!" {:form form}))))
 
 

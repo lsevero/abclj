@@ -16,10 +16,12 @@
     :ok))
 
 (defn load-quicklisp
-  "Loads quicklisp setup from the default folder"
-  []
-  (with-cl `(load ~(str (System/getProperty "user.home")
-                   "/quicklisp/setup.lisp"))))
+  "Loads quicklisp setup from the default folder, or specify a absolute path to setup.lisp"
+  ([]
+   (with-cl `(load ~(str (System/getProperty "user.home")
+                         "/quicklisp/setup.lisp"))))
+  ([path]
+   (with-cl `(load ~path))))
 
 (defn quickload
   "Load libraries from quicklisp, accept n number of CL libraries."

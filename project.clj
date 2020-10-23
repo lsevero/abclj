@@ -5,5 +5,7 @@
             :url "https://www.eclipse.org/legal/epl-2.0/"}
   :dependencies [[org.clojure/clojure "1.10.1"]
                  [org.abcl/abcl "1.7.1"]]
-  :profiles {:dev {:plugins [[cider/cider-nrepl "0.24.0"]]}}
-  :repl-options {:init-ns abclj.core})
+  :profiles {:dev {:plugins [[cider/cider-nrepl "0.24.0"]]
+                   :repl-options {:init-ns abclj.core}}}
+  :source-paths ["src"]
+  :java-source-paths ["java"])
