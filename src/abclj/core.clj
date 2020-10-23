@@ -37,26 +37,25 @@
   "ABCLJ Common Lisp Package, defined abclj variables will go to the *objects* variable."
   (Packages/findPackage "ABCLJ"))
 
-(defn new-env
-  "Creates a new CL environment"
-  []
-  (Environment.))
-
 (def ^:dynamic ^Environment *env*
-  "ABCLJ environment, all bidings definitions done in a with-cl macro will be hold here.
+  "ABCLJ environment
   You can overload the *env* with a new one using the binding clojure macro"
-  (new-env))
-
-(defn copy-env
-  "Copy a CL environment"
-  [env]
-  {:pre [(is (instance? Environment env))]}
-  (Environment. env))
+  (Environment.))
 
 (defn cl-obj?
   "Check if the object is a Common Lisp object"
   [obj]
   (instance? LispObject obj))
+
+(defn princ-to-string
+  "Get a string representation of a LispObject as it CL function princ-to-string would return"
+  [^LispObject obj]
+  {:pre [(is (cl-obj? obj))]}
+  (.princToString obj))
+
+(comment (try
+           (princ-to-string #abclj/cl-complex [1 1])
+           (catch Exception e (ex-data e))))
 
 (defn cl-evaluate
   "Evaluate a CL string source, beahave most like the Interpreter/evaluate but you have control on the environment used."
@@ -132,7 +131,7 @@
         (with-cl->clj ~@restbody))))
 
 
-(defn defvar
+#_(defn defvar
   "Add a new biding on the current environment, kinda like defvar in CL.
   The namespace on the symbol will be used as the CL package on the CL symbol.
   If the package is nil then the package COMMON-LISP-USER will be used."

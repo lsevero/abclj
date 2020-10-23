@@ -59,13 +59,12 @@
 
 (defn cl-complex
   [form]
-  (prn form)
-  (if (and (sequential? form)
-           (= 2 (count form))
-           (every? number? form))
-    (let [[r i] form]
-     (Complex/getInstance (cl-double r) (cl-double i)))
-    (throw (ex-info "Form should be a sequential of size 2 with numbers only!" {:form form}))))
+  (case (count form)
+    2 (let [[r i] form]
+        (Complex/getInstance (DoubleFloat/getInstance (double r)) (DoubleFloat/getInstance (double i))))
+    4 (let [[r _ i __] form]
+        (Complex/getInstance (DoubleFloat/getInstance (double r)) (DoubleFloat/getInstance (double i))))
+    (throw (ex-info "Form should be a vector of size 2 with numbers only!" {:form form}))))
 
 (defmethod print-method Complex
   [^Complex form ^Writer w]
