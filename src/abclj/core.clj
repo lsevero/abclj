@@ -5,9 +5,10 @@
             [clojure.walk :refer [postwalk]]
             [abclj.readers :refer [cl-symbol]])
   (:import [org.armedbear.lisp EndOfFile Stream StringInputStream LispThread Environment Interpreter Load LispObject
-            Lisp LispInteger DoubleFloat SingleFloat AbstractString Symbol Ratio Nil Fixnum Packages
-            Primitives SpecialBindingsMark]
-           [abclj.java AbcljUtils]))
+            Lisp LispInteger DoubleFloat SingleFloat AbstractString Symbol Ratio Nil Fixnum Packages SimpleString
+            Primitives SpecialBindingsMark Function Closure Cons]
+           [abclj.java AbcljUtils]
+           [java.io ByteArrayInputStream]))
 
 (def cl-t (Symbol/T))
 (def cl-nil Nil/NIL)
@@ -15,8 +16,6 @@
 (defn cl-load
   "Execute the contents of the file f in the CL environment.
   Works like the load CL function.
-  
-  Throws a UnhandledCondition in case of failure.
   "
   [f]
   (-> f io/input-stream Load/load))
@@ -25,37 +24,58 @@
   "Execute the contents of the resource file f in the CL environment.
   Works like the load CL function.
   Useful if you want to embed a CL file in a .jar
-  
-  Throws a UnhandledCondition in case of failure.
   "
   [f]
   (-> f io/resource io/input-stream Load/load))
 
-(cl-load-resource "abclj.lisp")
+(defn cl-load-string
+  "Execute the contents of the string as it was read from a file in the CL environment"
+  [^String s]
+  {:pre [(is (string? s))]}
+  (-> s .getBytes ByteArrayInputStream. io/input-stream Load/load))
 
-(def +ABCLJ-PKG+
-  "ABCLJ Common Lisp Package, defined abclj variables will go to the *objects* variable."
-  (Packages/findPackage "ABCLJ"))
+(comment (put (cl-symbol :a) #abclj/cl-integer 1))
+(comment (retrieve (cl-symbol :a)))
+(comment (.execute (.getSymbolFunction (.findAccessibleSymbol +abclj-pkg+ "PUT")) (SimpleString. "a") (SimpleString. "b")))
+(comment (.execute (.getSymbolFunction (.findAccessibleSymbol +abclj-pkg+ "GET-TEST"))))
+(comment (-> +abclj-pkg+
+             (.findAccessibleSymbol "*TESTE*")
+             .getSymbolValue))
+
+(comment (with-cl 
+           '(format nil "~a" *package*)
+           ))
+(comment (with-cl '(put :a 2)))
+(comment (with-cl '(retrieve :a)))
+(comment (with-cl '(defvar a 123)))
+(comment (with-cl '(format nil "~a" a)))
+
+(defn new-env
+  "Returns a new environment"
+  ^Environment
+  []
+  (Environment.))
 
 (def ^:dynamic ^Environment *env*
   "ABCLJ environment
   You can overload the *env* with a new one using the binding clojure macro"
-  (Environment.))
+  (new-env))
 
 (defn cl-obj?
   "Check if the object is a Common Lisp object"
   [obj]
   (instance? LispObject obj))
 
+(defn cl-function?
+  "Check if the object is a Common Lisp function"
+  [obj]
+  (instance? Function obj))
+
 (defn princ-to-string
   "Get a string representation of a LispObject as it CL function princ-to-string would return"
   [^LispObject obj]
   {:pre [(is (cl-obj? obj))]}
   (.princToString obj))
-
-(comment (try
-           (princ-to-string #abclj/cl-complex [1 1])
-           (catch Exception e (ex-data e))))
 
 (defn cl-evaluate
   "Evaluate a CL string source, beahave most like the Interpreter/evaluate but you have control on the environment used."
@@ -74,7 +94,7 @@
 (defn ->bool
   "Get boolean value of Common Lisp object"
   [^LispObject obj]
-  {:pre [(is (instance? LispObject obj))]}
+  {:pre [(is (cl-obj? obj))]}
   (.getBooleanValue obj))
 
 (defn declojurify [coll]
@@ -86,26 +106,37 @@
                              remove-ns
                              )) coll)))
 
-(defn cl->clj
-  "Convert CL objects to its clojure counterparts, if no classes match will return the argument unmodified."
-  [obj]
-  (condp instance? obj
-       LispInteger (.-value ^Fixnum obj)
-       SingleFloat (.-value ^SingleFloat obj)
-       DoubleFloat (.-value ^DoubleFloat obj)
-       AbstractString (str obj)       
-       Nil nil
-       Ratio (clojure.lang.Ratio. (.numerator ^Ratio obj) (.denominator ^Ratio obj))
-       Symbol (condp = obj
+(defprotocol Clojurifiable
+  (cl->clj [this]))
+
+(extend-protocol Clojurifiable
+  LispInteger (cl->clj [obj]
+                (.-value ^Fixnum obj))
+  SingleFloat (cl->clj [obj]
+                (.-value obj))
+  DoubleFloat (cl->clj [obj]
+                (.-value obj))
+  AbstractString (cl->clj [obj]
+                   (str obj))
+  Nil (cl->clj [_]
+        nil)
+  Ratio (cl->clj [obj]
+          (clojure.lang.Ratio. (.numerator ^Ratio obj) (.denominator ^Ratio obj)))
+  Symbol (cl->clj [obj]
+           (condp = obj
                 cl-t true
                 cl-nil nil
                 (if (= "KEYWORD" (-> ^Symbol obj ^org.armedbear.lisp.Package (.getPackage) .getName))
                   (-> ^Symbol obj .-name str keyword)
-                  (-> ^Symbol obj .-name str symbol)))
-       obj))
+                  (-> ^Symbol obj .-name str symbol))))
+
+  Object (cl->clj [obj]
+           obj))
 
 (defmacro with-cl
   "Run body as a Common Lisp program, the body should be quoted.
+  Bindings will be shared between 'with-cl' calls but does not interfere or access global bindings,
+  to set or get global state user the setvar or getvar functions.
   Return the CL object of last form. 
   Readers macros in the CL source should NOT be used as they will be capture by the clj compiler.
   
@@ -119,42 +150,65 @@
 
 (defmacro with-cl->clj
   "Run body as a Common Lisp program, the body should be quoted.
-  Return the converted CL object to its cljl counterpart.
+  Bindings will be shared between 'with-cl->clj' calls but does not interfere or access global bindings,
+  to set or get global state user the setvar or getvar functions.
+  Return the converted CL object to its clj counterpart.
   Readers macros in the CL source should NOT be used as they will be capture by the clj compiler.
   
   Throws a UnhandledCondition in case of failure.
   "
   ([body]
-   `(->> ~body declojurify (into []) seq str cl-evaluate cl->clj))
+   `(->> ~body with-cl cl->clj))
   ([headbody & restbody]
    `(do (with-cl->clj ~headbody)
         (with-cl->clj ~@restbody))))
 
 
-#_(defn defvar
-  "Add a new biding on the current environment, kinda like defvar in CL.
+(defn setvar
+  "Set a value to a symbol.
   The namespace on the symbol will be used as the CL package on the CL symbol.
   If the package is nil then the package COMMON-LISP-USER will be used."
   [sym obj]
   {:pre [(is (symbol? sym)) (is (cl-obj? obj))]}
-  (let [name-sym (-> sym name symbol)
-        cl-sym (cl-symbol sym)]
-    (with-cl `(defvar ~name-sym nil))
-    (.setSymbolValue cl-sym obj)
-    (.bind *env* cl-sym obj)
-    obj))
+   (.setSymbolValue (cl-symbol sym) obj)
+    obj)
 
-(comment 
-         
-         (defvar 'hue #abclj/cl-integer 123)
-         (.lookup *env* (cl-symbol 'hue))
-         (Packages/findPackage "ABCLJ")
-         (.findSymbol Lisp/PACKAGE_CL_USER "hue")
-         (.findSymbol Lisp/PACKAGE_CL_USER "x")
-         (with-cl->clj '(progn (format nil "~a" hue)))
-         (with-cl->clj '(print hue))
-         (.getName (.getPackage (with-cl '(defvar x 1))))
-         (with-cl->clj '(defvar hue nil))
-         )
+(defn getvar
+  "Get the symbol value.
+  The namespace on the symbol will be used as the CL package on the CL symbol.
+  If the package is nil then the package COMMON-LISP-USER will be used. 
+  "
+  [sym]
+  {:pre [(is (symbol? sym))]}
+  (.getSymbolValue (cl-symbol sym)))
 
-(comment (let []))
+(defn setfunction
+  "Set a function to a symbol.
+  The namespace on the symbol will be used as the CL package on the CL symbol.
+  If the package is nil then the package COMMON-LISP-USER will be used. 
+  "
+  [sym func]
+  {:pre [(is (symbol? sym) (cl-function? func))]}
+  (.setSymbolFunction (cl-symbol sym) func))
+
+(defn getfunction
+  "Get a function from a symbol
+  The namespace on the symbol will be used as the CL package on the CL symbol.
+  If the package is nil then the package COMMON-LISP-USER will be used. 
+  "
+  [sym]
+  {:pre [(is (symbol? sym))]}
+  (.getSymbolFunction (cl-symbol sym)))
+
+(defn alist->map
+  "Converts an assoc list to a clojure map.
+  Be aware that Common Lisp likes to upper-case things, so a cl keyword ':test' will be returned as :TEST"
+  [^Cons obj]
+  (->> obj
+       .copyToArray
+       aclone
+       vec
+       (map #(let [car (.-car ^Cons %)
+                   cdr (.-cdr ^Cons %)]
+               [(cl->clj car) (cl->clj cdr)]))
+       (into {})))

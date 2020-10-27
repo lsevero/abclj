@@ -1,6 +1,6 @@
 (ns abclj.readers
   (:require [clojure.string :as str])
-  (:import [org.armedbear.lisp Lisp Interpreter LispInteger Fixnum Ratio DoubleFloat SingleFloat Complex Symbol Nil Packages]
+  (:import [org.armedbear.lisp Lisp Interpreter LispInteger Fixnum Ratio DoubleFloat SingleFloat Complex Symbol Nil Packages SimpleString]
            [java.io Writer]))
 
 (Interpreter/createInstance)
@@ -79,14 +79,18 @@
                     (-> form ^DoubleFloat (.getImaginaryPart) .-value))))
 
 (defn cl-symbol
+  ^Symbol
   [form]
-  (if (symbol? form)
+  (if (or (symbol? form)
+          (keyword? form))
     (let [ns-form (namespace form)
           name-form (name form)
-          ^org.armedbear.lisp.Package pkg (if-not (nil? ns-form)
-                                            (-> ns-form str/upper-case Packages/findPackage)
-                                            Lisp/PACKAGE_CL_USER)]
-        (.intern pkg name-form))
+          ^org.armedbear.lisp.Package pkg (if (keyword? form)
+                                            Lisp/PACKAGE_KEYWORD
+                                            (if-not (nil? ns-form)
+                                              (-> ns-form str/upper-case Packages/findPackage)
+                                              Lisp/PACKAGE_CL_USER))]
+      (.intern pkg name-form))
     (throw (ex-info "Form should be a symbol!" {:form form}))))
 
 
@@ -115,3 +119,19 @@
                                 "nil"
                                 (.getName pkg))
                               sname))))) 
+
+(defn cl-string
+  ^SimpleString
+  [^String form]
+  (if (string? form)
+    (SimpleString. form)
+    (throw (ex-info "Form should be a string!" {:form form}))))
+
+(defmethod print-method SimpleString
+  [^SimpleString form ^Writer w]
+  (.write w (format "#abclj/cl-string \"%s\"" (str form))))
+
+
+(defmethod print-dup SimpleString
+  [^SimpleString form ^Writer w]
+  (.write w (format "#abclj/cl-string \"%s\"" (str form))))
