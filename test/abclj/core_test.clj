@@ -86,3 +86,7 @@
             :B "br"}
            (alist->map (with-cl '(progn '((:a . "hue")
                                           (:b . "br")))))))))
+
+(deftest coerce-test
+  (testing
+    (is (instance? Cons (coerce (with-cl '(make-array '(3))) 'list)))))

@@ -271,6 +271,3 @@
     {:pre [(is (cl-obj? obj)) (is (symbol? s))]}
     (funcall cl-coerce obj (cl-symbol s))))
 
-(comment (vec (.copyToArray (coerce (with-cl '(make-array '(3))) 'list))))
-(comment (vec (.copyToArray (coerce (with-cl ''((1 . 2))) 'hash-table))))
-
