@@ -75,7 +75,10 @@
     (let [+-cl-func (-> Lisp/PACKAGE_CL
                         (.findAccessibleSymbol "+")
                         .getSymbolFunction)]
-      (is (= 3 (cl->clj (.execute +-cl-func #abclj/cl-integer 1 #abclj/cl-integer 2)))))))
+      (is (= 3 (cl->clj (.execute +-cl-func #abclj/cl-integer 1 #abclj/cl-integer 2)))))
+    (is (= -1.0 (cl->clj (.-realpart (funcall (getfunction 'cl/expt)
+                                              #abclj/cl-complex [0 1]
+                                              #abclj/cl-integer 2)))))))
 
 (deftest alist->map-test
   (testing

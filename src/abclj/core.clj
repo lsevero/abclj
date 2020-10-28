@@ -2,11 +2,12 @@
   (:refer-clojure :exclude [remove-ns])
   (:require [clojure.java.io :as io]
             [clojure.test :refer [is]]
+            [clojure.string :as str]
             [clojure.walk :refer [postwalk]]
-            [abclj.readers :refer [cl-symbol]])
+            [abclj.readers :refer :all])
   (:import [org.armedbear.lisp EndOfFile Stream StringInputStream LispThread Environment Interpreter Load LispObject
             Lisp LispInteger DoubleFloat SingleFloat AbstractString Symbol Ratio Nil Fixnum Packages SimpleString
-            Primitives SpecialBindingsMark Function Closure Cons]
+            Primitives SpecialBindingsMark Function Closure Cons JavaObject]
            [abclj.java AbcljUtils]
            [java.io ByteArrayInputStream]))
 
@@ -34,22 +35,6 @@
   {:pre [(is (string? s))]}
   (-> s .getBytes ByteArrayInputStream. io/input-stream Load/load))
 
-(comment (put (cl-symbol :a) #abclj/cl-integer 1))
-(comment (retrieve (cl-symbol :a)))
-(comment (.execute (.getSymbolFunction (.findAccessibleSymbol +abclj-pkg+ "PUT")) (SimpleString. "a") (SimpleString. "b")))
-(comment (.execute (.getSymbolFunction (.findAccessibleSymbol +abclj-pkg+ "GET-TEST"))))
-(comment (-> +abclj-pkg+
-             (.findAccessibleSymbol "*TESTE*")
-             .getSymbolValue))
-
-(comment (with-cl 
-           '(format nil "~a" *package*)
-           ))
-(comment (with-cl '(put :a 2)))
-(comment (with-cl '(retrieve :a)))
-(comment (with-cl '(defvar a 123)))
-(comment (with-cl '(format nil "~a" a)))
-
 (defn new-env
   "Returns a new environment"
   ^Environment
@@ -65,6 +50,12 @@
   "Check if the object is a Common Lisp object"
   [obj]
   (instance? LispObject obj))
+
+(let [arrayclass (class (make-array LispObject 1))]
+  (defn cl-obj-array?
+    "Check if obj is instance of LispObject[]"
+    [obj]
+    (instance? arrayclass obj)))
 
 (defn cl-function?
   "Check if the object is a Common Lisp function"
@@ -133,6 +124,29 @@
   Object (cl->clj [obj]
            obj))
 
+(defprotocol CommonLispfiable
+  (clj->cl [this]))
+
+(extend-protocol CommonLispfiable
+  Long (clj->cl [obj]
+         (cl-integer obj))
+  Integer (clj->cl [obj]
+            (cl-integer obj))
+  clojure.lang.Ratio (clj->cl [obj]
+                       (cl-ratio obj))
+  String (clj->cl [obj]
+           (cl-string obj))
+  clojure.lang.Symbol (clj->cl [obj]
+                        (cl-symbol obj))
+  Float (clj->cl [obj]
+          (cl-double obj))
+  Double (clj-cl [obj]
+           (cl-double))
+  Boolean (clj->cl [obj]
+            (if obj
+              cl-t
+              cl-nil)))
+
 (defmacro with-cl
   "Run body as a Common Lisp program, the body should be quoted.
   Bindings will be shared between 'with-cl' calls but does not interfere or access global bindings,
@@ -180,7 +194,7 @@
   "
   [sym]
   {:pre [(is (symbol? sym))]}
-  (.getSymbolValue (cl-symbol sym)))
+  (.symbolValue (cl-symbol sym)))
 
 (defn setfunction
   "Set a function to a symbol.
@@ -189,7 +203,8 @@
   "
   [sym func]
   {:pre [(is (symbol? sym) (cl-function? func))]}
-  (.setSymbolFunction (cl-symbol sym) func))
+  (let []
+   (.setSymbolFunction (cl-symbol sym) func)))
 
 (defn getfunction
   "Get a function from a symbol
@@ -198,17 +213,64 @@
   "
   [sym]
   {:pre [(is (symbol? sym))]}
-  (.getSymbolFunction (cl-symbol sym)))
+  (.getSymbolFunctionOrDie (cl-symbol sym)))
+
+(defn funcall
+  "Call a CL function, kinda like the CL funcall"
+  ([^Function f arg]
+   {:pre [(is (cl-function? f)) (is (or (cl-obj? arg)
+                                        (cl-obj-array? arg)))]}
+   ;We will need reflection here
+   (.execute f arg))
+  ([^Function f ^LispObject arg1 ^LispObject arg2]
+   {:pre [(is (cl-function? f))]}
+   (.execute f arg1 arg2))
+  ([^Function f ^LispObject arg1 ^LispObject arg2 ^LispObject arg3]
+   {:pre [(is (cl-function? f))]}
+   (.execute f arg1 arg2 arg3))
+  ([^Function f ^LispObject arg1 ^LispObject arg2 ^LispObject arg3 ^LispObject arg4]
+   {:pre [(is (cl-function? f))]}
+   (.execute f arg1 arg2 arg3 arg4))
+  ([^Function f ^LispObject arg1 ^LispObject arg2 ^LispObject arg3 ^LispObject arg4 ^LispObject arg5]
+   {:pre [(is (cl-function? f))]}
+   (.execute f arg1 arg2 arg3 arg4 arg5))
+  ([^Function f ^LispObject arg1 ^LispObject arg2 ^LispObject arg3 ^LispObject arg4 ^LispObject arg5 ^LispObject arg6]
+   {:pre [(is (cl-function? f))]}
+   (.execute f arg1 arg2 arg3 arg4 arg5 arg6))
+  ([^Function f ^LispObject arg1 ^LispObject arg2 ^LispObject arg3 ^LispObject arg4 ^LispObject arg5 ^LispObject arg6 ^LispObject arg7]
+   {:pre [(is (cl-function? f))]}
+   (.execute f arg1 arg2 arg3 arg4 arg5 arg6 arg7))
+  ([^Function f ^LispObject arg1 ^LispObject arg2 ^LispObject arg3 ^LispObject arg4 ^LispObject arg5 ^LispObject arg6 ^LispObject arg7 ^LispObject arg8]
+   {:pre [(is (cl-function? f))]}
+   (.execute f arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8)))
+
+(defn cons->vec
+  "Converts a CL cons/list to a clojure vector.
+  Lists will be cl-nil terminated, dotted conses will be not."
+  [^Cons obj]
+  {:pre [(is (instance? Cons obj))]}
+  (-> obj .copyToArray vec))
 
 (defn alist->map
   "Converts an assoc list to a clojure map.
   Be aware that Common Lisp likes to upper-case things, so a cl keyword ':test' will be returned as :TEST"
   [^Cons obj]
   (->> obj
-       .copyToArray
-       aclone
-       vec
+       cons->vec
        (map #(let [car (.-car ^Cons %)
                    cdr (.-cdr ^Cons %)]
                [(cl->clj car) (cl->clj cdr)]))
        (into {})))
+
+(let [cl-coerce (getfunction 'cl/coerce)]
+  (defn coerce
+    "Common Lisp coerce function.
+    It is hard to work with some CL data structures on the java/clj side.
+    Coercing them to list makes things a lot easier. See cons->vec."
+    [^LispObject obj s]
+    {:pre [(is (cl-obj? obj)) (is (symbol? s))]}
+    (funcall cl-coerce obj (cl-symbol s))))
+
+(comment (vec (.copyToArray (coerce (with-cl '(make-array '(3))) 'list))))
+(comment (vec (.copyToArray (coerce (with-cl ''((1 . 2))) 'hash-table))))
+

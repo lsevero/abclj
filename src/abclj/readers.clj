@@ -84,13 +84,15 @@
   (if (or (symbol? form)
           (keyword? form))
     (let [ns-form (namespace form)
-          name-form (name form)
+          name-form (-> form name str/upper-case)
           ^org.armedbear.lisp.Package pkg (if (keyword? form)
                                             Lisp/PACKAGE_KEYWORD
                                             (if-not (nil? ns-form)
                                               (-> ns-form str/upper-case Packages/findPackage)
                                               Lisp/PACKAGE_CL_USER))]
-      (.intern pkg name-form))
+      (if-let [s (.findAccessibleSymbol pkg name-form)]
+        s
+        (.intern pkg name-form)))
     (throw (ex-info "Form should be a symbol!" {:form form}))))
 
 
