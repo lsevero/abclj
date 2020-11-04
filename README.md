@@ -52,7 +52,7 @@ It provides both a compiler and a interpreter that can be used as scripting lang
 (quickload :trivial-http)
 (princ-to-string (with-cl '(trivial-http:http-get "http://lite.duckduckgo.com/lite/")))
 ```
-Also check the project tasks.
+Also check the project tests.
 
 ## The ultimate goal
 
