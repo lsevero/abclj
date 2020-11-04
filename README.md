@@ -1,6 +1,8 @@
 # Armed Bear Clojure
 Dead easy Common Lisp interop
 
+[![Clojars Project](https://img.shields.io/clojars/v/abclj.svg)](https://clojars.org/abclj)
+
 ## Why??
 
 There are others of attempts to shorten the gap between clojure and common lisp like [Cloture](https://github.com/ruricolist/cloture) and [clclojure](https://github.com/joinr/clclojure).
