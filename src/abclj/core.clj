@@ -465,3 +465,13 @@
     {:pre [(is (cl-obj? obj)) (is (symbol? s))]}
     (funcall cl-coerce obj (cl-symbol s))))
 
+(defmacro defun
+  "Defines a new function named `sym` in the global environment."
+  [sym args body]
+  `(let [cl-symb# (cl-evaluate
+                   (str (seq (into []
+                                   (declojurify
+                                    '(defun abclj-fn# ~args ~body))))))]
+     (defn ~sym [~@args]
+       (cl->clj
+        (funcall (.getSymbolFunctionOrDie cl-symb#) ~@args)))))
