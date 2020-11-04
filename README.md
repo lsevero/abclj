@@ -31,11 +31,12 @@ It provides both a compiler and a interpreter that can be used as scripting lang
                  '(fact 5)))
 
 ;you can also evaluate strings and LispObjects
-(= 3 (cl-evaluate "(+ 1 2)")
+(= 3 (cl->clj (cl-evaluate "(+ 1 2)")))
 ;the cl-cons creates a CL cons from a clj sequential
-(= 6 (cl-cons [(cl-symbol 'cl/+) 1 2 3 cl-nil])
+(= 6 (cl->clj (cl-evaluate (cl-cons [(cl-symbol 'cl/+) 1 2 3 cl-nil]))))
 
-;importing CL functions to the java/cllj world
+;importing CL functions to the java/clj world
+;the symbol namespaces are used to search for CL packages
 (def cl-format (getfunction 'cl/format))
 (-> cl-format
   (funcall cl-nil (cl-string "Hi from CL, ~a") (cl-string "armed bear clojure"))
