@@ -408,15 +408,6 @@
                       firstkons)))))))
       (throw (ex-info "Form should be a sequential and of size greater than 1!" {:form coll})))))
 
-(comment (.princToString (cl-cons [(cl-int 1) (cl-int 2) (cl-int 3)])))
-(comment (.princToString (cl-cons [1 2 3 cl-nil])))
-(comment (.princToString (cl-cons [(cl-int 1) (cl-int 2) (cl-int 3)
-                                   (cl-int 1) (cl-int 2) (cl-int 3) cl-nil])))
-(comment (.princToString (cl-cons [[1 2]
-                                   [3 4]
-                                   [5 6]
-                                   cl-nil])))
-
 (defmacro with-cl
   "Run body as a Common Lisp program, the body should be quoted.
   Bindings will be shared between 'with-cl' calls but does not interfere or access global bindings,
