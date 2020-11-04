@@ -468,12 +468,10 @@
 (defmacro defun
   "Defines a new function named `sym` in the global environment."
   [sym args body]
-  `(let [fn-name# (symbol (str "abcl-" ~sym))
-         cl-symb# (cl-evaluate
+  `(let [cl-symb# (cl-evaluate
                    (str (seq (into []
                                    (declojurify
-                                    '(defun fn-name# (~@args) ~body))))))]
-     (defn ~sym ~args
-       (let [cl-objs# (map clj->cl ~args)]
-         (cl->clj
-          (apply #(funcall (.getSymbolFunctionOrDie cl-symb#) %) cl-objs#))))))
+                                    '(defun abclj-fn# ~args ~body))))))]
+     (defn ~sym [~@args]
+       (cl->clj
+        (funcall (.getSymbolFunctionOrDie cl-symb#) ~@args)))))
