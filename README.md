@@ -51,6 +51,11 @@ It provides both a compiler and a interpreter that can be used as scripting lang
 
 (quickload :trivial-http)
 (princ-to-string (with-cl '(trivial-http:http-get "http://lite.duckduckgo.com/lite/")))
+
+(defun fac2 [n]
+  (reduce (function *) (loop for i from 1 to n collect i)))
+
+(fac2 (fac2 3))
 ```
 Also check the project tasks.
 
