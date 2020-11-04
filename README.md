@@ -1,15 +1,63 @@
-# Armed Bear Clojure: Dead easy bidings for Common Lisp
+# Armed Bear Clojure
+Dead easy Common Lisp interop
 
 ## Why??
-Why not?
+
+There are others of attempts to shorten the gap between clojure and common lisp like [Cloture](https://github.com/ruricolist/cloture) and [clclojure](https://github.com/joinr/clclojure).
+Once they are complete Clojure will benefit from native binaries and excelent compilers like SBCL, however they are far from complete.
+
+This project took a different aproach, instead of rewriting the whole Clojure langugage on CL I'm embedding ABCL in Clojure.
+Since both are implemented in Java and Clojure has an awesome java interop is easy to have full access on the ABCL Common Lisp environment.
+This way we have complete support for both Clojure and Common Lisp.
+
+ABCL is a incredible Common Lisp implementation, the source code is very clear and straightforward.
+It provides both a compiler and a interpreter that can be used as scripting language in any java-based project, but embedding it in other lisps (like clojure) I do believe has some advantages.
+
 
 ## Usage
 
-FIXME
+```clojure
+(require '[abclj.core :refer :all])
+
+
+;using the with-cl->clj macro to inject CL code into the interpreter
+;it is a composition of the with-cl macro to inject code and the cl->clj protocol to convert the CL java class to a clj relative
+(= 120 (with-cl->clj
+                 '(defun fact (n)
+                    (reduce (function *) (loop for i from 1 to n collect i)))
+                 '(fact 5)))
+
+;you can also evaluate strings and LispObjects
+(= 3 (cl-evaluate "(+ 1 2)")
+;the cl-cons creates a CL cons from a clj sequential
+(= 6 (cl-cons [(cl-symbol 'cl/+) 1 2 3 cl-nil])
+
+;importing CL functions to the java/cllj world
+(def cl-format (getfunction 'cl/format))
+(-> cl-format
+  (funcall cl-nil (cl-string "Hi from CL, ~a") (cl-string "armed bear clojure"))
+  cl->clj
+  clojure.string/upper-case
+  println) ;=> HI FROM CL, ARMED BEAR CLOJURE
+
+
+;partial support for quicklisp
+;(quicklisp works but the packages that depend on CFFI don't)
+(require '[abclj.quicklisp :refer [quickload]])
+
+(quickload :trivial-http)
+(princ-to-string (with-cl '(trivial-http:http-get "http://lite.duckduckgo.com/lite/")))
+```
+Also check the project tasks.
+
+## The ultimate goal
+
+The reason I wanted to see Clojure and Common Lisp working with each other was to use CL programs/libraries on Clojure, especially Maxima and ACL2.
+Since ABCL already compiles and runs Maxima it should be possible but we are very far from it 🤷.
 
 ## License
 
-Copyright © 2020 FIXME
+Copyright © 2020 Lucas Severo
 
 This program and the accompanying materials are made available under the
 terms of the Eclipse Public License 2.0 which is available at

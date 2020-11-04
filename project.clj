@@ -1,5 +1,5 @@
-(defproject abclj "0.1.0-SNAPSHOT"
-  :description "Armed Bear Clojure, dead easy Common Lisp bidings for Clojure."
+(defproject abclj "0.1.0"
+  :description "Armed Bear Clojure, dead easy Common Lisp interop"
   :url "https://www.github.com/lsevero/abclj"
   :license {:name "EPL-2.0 OR GPL-2.0-or-later WITH Classpath-exception-2.0"
             :url "https://www.eclipse.org/legal/epl-2.0/"}
