@@ -3,8 +3,7 @@
            [abclj.java UnhandledCondition])
   (:require [clojure.test :refer :all]
             [abclj
-             [core :refer :all]
-             [readers :refer :all]]))
+             [core :refer :all]]))
 
 (deftest with-cl-test
   (testing
@@ -49,7 +48,7 @@
 
 (deftest ->bool-test
   (testing "Everything that is not cl-nil should be true"
-    (is (->bool #abclj/cl-integer 1))
+    (is (->bool #abclj/cl-int 1))
     (is (->bool #abclj/cl-double 2.0))
     (is (->bool #abclj/cl-ratio 2/3))
     (is (->bool #abclj/cl-complex [1 1]))
@@ -67,7 +66,7 @@
 
 (deftest set-get-var-test
   (testing
-    (is (= 123 (cl->clj (do (setvar 'test #abclj/cl-integer 123)
+    (is (= 123 (cl->clj (do (setvar 'test #abclj/cl-int 123)
                             (getvar 'test)))))))
 
 (deftest set-get-function-test
@@ -75,10 +74,10 @@
     (let [+-cl-func (-> Lisp/PACKAGE_CL
                         (.findAccessibleSymbol "+")
                         .getSymbolFunction)]
-      (is (= 3 (cl->clj (.execute +-cl-func #abclj/cl-integer 1 #abclj/cl-integer 2)))))
+      (is (= 3 (cl->clj (.execute +-cl-func #abclj/cl-int 1 #abclj/cl-int 2)))))
     (is (= -1.0 (cl->clj (.-realpart (funcall (getfunction 'cl/expt)
                                               #abclj/cl-complex [0 1]
-                                              #abclj/cl-integer 2)))))))
+                                              #abclj/cl-int 2)))))))
 
 (deftest alist->map-test
   (testing
@@ -90,3 +89,20 @@
 (deftest coerce-test
   (testing
     (is (instance? Cons (coerce (with-cl '(make-array '(3))) 'list)))))
+
+(deftest cl-cons-test
+  (testing
+    (is (= "(1 2 3)" (prin1-to-string (cl-cons [1 2 3 cl-nil]))))
+    (is (= "(1 2 . 3)" (prin1-to-string (cl-cons [1 2 3]))))
+    (is (= "((1 . 2) (3 . 4) (5 . 6))" (prin1-to-string (cl-cons [[1 2]
+                                                                  [3 4]
+                                                                  [5 6]
+                                                                  cl-nil]))))
+    (is (= "((1 . 2) (3 . 4) 5 . 6)" (prin1-to-string (cl-cons [[1 2]
+                                                                [3 4]
+                                                                [5 6]]))))))
+
+(deftest cl-evaluate-test
+  (testing
+    (is (= 3 (cl->clj (cl-evaluate "(+ 1 2)"))))
+    (is (= 3 (cl->clj (cl-evaluate (cl-cons [(cl-symbol 'cl/+) 1 2 cl-nil])))))))
