@@ -23,7 +23,8 @@ It provides both a compiler and a interpreter that can be used as scripting lang
 
 
 ;using the with-cl->clj macro to inject CL code into the interpreter
-;it is a composition of the with-cl macro to inject code and the cl->clj protocol to convert the CL java class to a clj relative
+;it is a composition of the with-cl macro to inject code and
+;the cl->clj protocol to convert the CL java class to a clj relative
 (= 120 (with-cl->clj
                  '(defun fact (n)
                     (reduce (function *) (loop for i from 1 to n collect i)))
