@@ -271,6 +271,63 @@
    {:pre [(is (cl-function? f))]}
    (.execute f arg1 arg2 arg3 arg4 arg5 arg6 arg7 arg8)))
 
+(defn applycall
+  [f args]
+  (case (count args)
+    0 (.execute f)
+    1 (.execute f (nth args 0))
+    2 (.execute f
+                (nth args 0)
+                (nth args 1))
+    3 (.execute f
+                (nth args 0)
+                (nth args 1)
+                (nth args 2))
+    4 (.execute f
+                (nth args 0)
+                (nth args 1)
+                (nth args 2)
+                (nth args 3))
+    5 (.execute f
+                (nth args 0)
+                (nth args 1)
+                (nth args 2)
+                (nth args 3)
+                (nth args 4))
+    6 (.execute f
+                (nth args 0)
+                (nth args 1)
+                (nth args 2)
+                (nth args 3)
+                (nth args 4)
+                (nth args 5))
+    7 (.execute f
+                (nth args 0)
+                (nth args 1)
+                (nth args 2)
+                (nth args 3)
+                (nth args 4)
+                (nth args 5)
+                (nth args 6))))
+(defn spread
+  [arglist]
+  (cond
+    (nil? arglist) nil
+    (nil? (next arglist)) (seq (first arglist))
+    :else (cons (first arglist) (spread (next arglist)))))
+
+(defn cl-apply
+  ([f args]
+   (applycall f args))
+  ([f x args]
+   (applycall f (cons x args)))
+  ([f x y args]
+   (applycall f (cons x (cons y args))))
+  ([f x y z args]
+   (applycall f (cons x (cons y (cons z args)))))
+  ([f a b c d & args]
+   (applycall f (cons a (cons b (cons c (cons d (spread args))))))))
+
 (defn princ-to-string
   "Get a string representation of a LispObject as it CL function princ-to-string would return"
   [^LispObject obj]
@@ -473,5 +530,6 @@
                                    (declojurify
                                     '(defun abclj-fn# ~args ~body))))))]
      (defn ~sym [~@args]
-       (cl->clj
-        (funcall (.getSymbolFunctionOrDie cl-symb#) ~@args)))))
+       (let [cl-objs# (map clj->cl (list ~@args))]
+         (cl->clj
+          (cl-apply (.getSymbolFunctionOrDie cl-symb#) cl-objs#))))))
