@@ -6,7 +6,7 @@
             [clojure.walk :refer [postwalk]])
   (:import [org.armedbear.lisp EndOfFile Stream StringInputStream LispThread Environment Interpreter Load LispObject
             Lisp LispInteger DoubleFloat SingleFloat AbstractString Symbol Ratio Nil Fixnum Packages SimpleString
-            Primitives SpecialBindingsMark Function Closure Cons JavaObject Complex]
+            Primitives SpecialBindingsMark Function Closure Cons JavaObject Complex Bignum]
            [abclj.java AbcljUtils]
            [java.io ByteArrayInputStream Writer]))
 
@@ -326,7 +326,9 @@
 
 (extend-protocol Clojurifiable
   LispInteger (cl->clj [obj]
-                (.-value ^Fixnum obj))
+                (if (= (class obj) Bignum)
+                  (.-value ^Bignum obj)
+                  (.-value ^Fixnum obj)))
   SingleFloat (cl->clj [obj]
                 (.-value obj))
   DoubleFloat (cl->clj [obj]
