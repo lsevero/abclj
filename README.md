@@ -55,12 +55,12 @@ It provides both a compiler and a interpreter that can be used as scripting lang
 (defun fac2 (n)
   (reduce (function *) (loop for i from 1 to n collect i)))
 
-(fac2 (fac2 (cl-int 3)))
+(fac2 (fac2 3))
 
 (defun discriminant (a b c)
   (- (* b b) (* 4 a c)))
 
-(discriminant (cl-int 1) (cl-int 2) (cl-int 3))
+(discriminant 1 2 3)
 ```
 Also check the project tasks.
 
