@@ -6,7 +6,7 @@
             [clojure.walk :refer [postwalk]])
   (:import [org.armedbear.lisp EndOfFile Stream StringInputStream LispThread Environment Interpreter Load LispObject
             Lisp LispInteger DoubleFloat SingleFloat AbstractString Symbol Ratio Nil Fixnum Packages SimpleString
-            Primitives SpecialBindingsMark Function Closure Cons JavaObject Complex Bignum]
+            Primitives SpecialBindingsMark Function Closure Cons JavaObject Complex Bignum ComplexString]
            [abclj.java AbcljUtils]
            [java.io ByteArrayInputStream Writer]))
 
@@ -51,6 +51,11 @@
   "Check if the object is a Common Lisp object"
   [obj]
   (instance? LispObject obj))
+
+(defn cl-function?
+  "Check if the object is a Common Lisp function"
+  [obj]
+  (instance? Function obj))
 
 (let [arrayclass (class (make-array LispObject 1))]
   (defn cl-obj-array?
@@ -139,22 +144,33 @@
                     (-> form ^DoubleFloat (.getImaginaryPart) .-value))))
 
 (defn cl-symbol
-  "Builds a common lisp Symbol"
+  "Builds a common lisp Symbol.
+  if a string is provided there should be a '/' or ':' separating the package followed by the symbol name."
   ^Symbol
   [form]
-  (if (or (symbol? form)
-          (keyword? form))
-    (let [ns-form (namespace form)
-          name-form (-> form name str/upper-case)
-          ^org.armedbear.lisp.Package pkg (if (keyword? form)
-                                            Lisp/PACKAGE_KEYWORD
-                                            (if-not (nil? ns-form)
-                                              (-> ns-form str/upper-case Packages/findPackage)
-                                              Lisp/PACKAGE_CL_USER))]
-      (if-let [s (.findAccessibleSymbol pkg name-form)]
-        s
-        (.intern pkg name-form)))
-    (throw (ex-info "Form should be a symbol!" {:form form}))))
+  (cond
+    (or (symbol? form)
+        (keyword? form)) (let [ns-form (namespace form)
+                               name-form (-> form name str/upper-case)
+                               ^org.armedbear.lisp.Package pkg (if (keyword? form)
+                                                                 Lisp/PACKAGE_KEYWORD
+                                                                 (if-not (nil? ns-form)
+                                                                   (-> ns-form str/upper-case Packages/findPackage)
+                                                                   Lisp/PACKAGE_CL_USER))]
+                           (if-let [s (.findAccessibleSymbol pkg name-form)]
+                             s
+                             (.intern pkg name-form)))
+    (string? form) (let [[pkg-or-symbol symbol-or-nil] (str/split form #"/|:")
+                         ^org.armedbear.lisp.Package pkg (if (nil? symbol-or-nil)
+                                                           Lisp/PACKAGE_CL_USER
+                                                           (-> pkg-or-symbol str/upper-case Packages/findPackage))
+                         ^String name-form (if (nil? symbol-or-nil)
+                                             pkg-or-symbol
+                                             symbol-or-nil)]
+                     (if-let [s (.findAccessibleSymbol pkg name-form)]
+                       s
+                       (.intern pkg name-form)))
+    :else (throw (ex-info "Form should be a symbol, keyword or string!" {:form form}))))
 
 
 (defmethod print-method Symbol
@@ -182,28 +198,6 @@
                                 "nil"
                                 (.getName pkg))
                               sname))))) 
-
-(defn cl-string
-  "Builds a Common Lisp SimpleString"
-  ^SimpleString
-  [^String form]
-  (if (string? form)
-    (SimpleString. form)
-    (throw (ex-info "Form should be a string!" {:form form}))))
-
-(defmethod print-method SimpleString
-  [^SimpleString form ^Writer w]
-  (.write w (format "#abclj/cl-string \"%s\"" (str form))))
-
-
-(defmethod print-dup SimpleString
-  [^SimpleString form ^Writer w]
-  (.write w (format "#abclj/cl-string \"%s\"" (str form))))
-
-(defn cl-function?
-  "Check if the object is a Common Lisp function"
-  [obj]
-  (instance? Function obj))
 
 (defn setvar
   "Set a value to a symbol.
@@ -282,6 +276,31 @@
     [obj]
     {:pre [(is (cl-obj? obj))]}
     (str (funcall cl-prin1 obj))))
+
+
+(defn cl-string
+  "Builds a Common Lisp SimpleString"
+  ^SimpleString
+  [^String form]
+  (if (string? form)
+    (SimpleString. form)
+    (throw (ex-info "Form should be a string!" {:form form}))))
+
+(defmethod print-method SimpleString
+  [^SimpleString form ^Writer w]
+  (.write w (format "#abclj/cl-string %s" (prin1-to-string form))))
+
+(defmethod print-dup SimpleString
+  [^SimpleString form ^Writer w]
+  (.write w (format "#abclj/cl-string %s" (prin1-to-string form))))
+
+(defmethod print-method ComplexString
+  [^SimpleString form ^Writer w]
+  (.write w (format "#abclj/cl-string %s" (prin1-to-string form))))
+
+(defmethod print-dup ComplexString
+  [^SimpleString form ^Writer w]
+  (.write w (format "#abclj/cl-string %s" (prin1-to-string form))))
 
 (defprotocol CommonLispfiable
   (clj->cl [this]))
