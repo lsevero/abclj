@@ -501,3 +501,14 @@
              apply# (.getSymbolFunctionOrDie (cl-symbol (symbol "cl/apply")))]
          (cl->clj
           (funcall apply# (.getSymbolFunctionOrDie cl-symb#) cl-objs#))))))
+
+(defmacro defvar
+  "Define a variable in global environment."
+  [sym value]
+  `(let [cl-var# (->> '(defvar ~sym ~value)
+                      declojurify
+                      (into [])
+                      seq
+                      str
+                      cl-evaluate)]
+     (def ~sym (clj->cl ~value))))

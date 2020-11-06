@@ -126,3 +126,9 @@
     (is (= 3 (adding 1 2)))
     (is (= 2 (multiply 1 2)))
     (is (= 5 (blah 1 2)))))
+
+(deftest test-defvar
+  (testing
+    (defvar *life* 10)
+    (is (cl-obj? *life*))
+    (is (= 10 (cl->clj *life*)))))
