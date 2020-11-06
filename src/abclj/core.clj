@@ -364,14 +364,18 @@
            (cl-string obj))
   clojure.lang.Symbol (clj->cl [obj]
                         (cl-symbol obj))
+  clojure.lang.Keyword (clj->cl [obj]
+                         (cl-symbol obj))
   Float (clj->cl [obj]
           (cl-double obj))
-  Double (clj-cl [obj]
-           (cl-double))
+  Double (clj->cl [obj]
+           (cl-double obj))
   Boolean (clj->cl [obj]
             (if obj
               cl-t
               cl-nil))
+  nil (clj->cl [_]
+        cl-nil)
   Object (clj->cl [obj]
            obj))
 
