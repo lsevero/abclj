@@ -106,3 +106,20 @@
   (testing
     (is (= 3 (cl->clj (cl-evaluate "(+ 1 2)"))))
     (is (= 3 (cl->clj (cl-evaluate (cl-cons [(cl-symbol 'cl/+) 1 2 cl-nil])))))))
+
+(defun adding (a b)
+  (+ a b))
+
+(defun multiply (a b)
+  (* a b))
+
+(defun blah (a b)
+  (let ((add (adding a b))
+        (mul (multiply a b)))
+    (+ mul add)))
+
+(deftest defun-with-nested-fns
+  (testing
+    (is (= 3 (adding 1 2)))
+    (is (= 2 (multiply 1 2)))
+    (is (= 5 (blah 1 2)))))

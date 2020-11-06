@@ -473,7 +473,7 @@
   `(let [cl-symb# (cl-evaluate
                    (str (seq (into []
                                    (declojurify
-                                    '(defun abclj-fn# ~args ~@body))))))]
+                                    '(defun ~sym ~args ~@body))))))]
      (defn ~sym [~@args]
        (let [cl-objs# (map clj->cl (list ~@args))
              cl-objs# (if (= (count cl-objs#) 0)
