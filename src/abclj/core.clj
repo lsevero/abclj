@@ -328,7 +328,7 @@
             (if (sequential? obj)
               (cl-cons obj)
               obj))]
-    (if (and (vector? coll)
+    (if (and (sequential? coll)
              (>= (count coll) 2))
       (let [obj-coll (map #(if (cl-obj? %) 
                              %
