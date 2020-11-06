@@ -283,6 +283,71 @@
     {:pre [(is (cl-obj? obj))]}
     (str (funcall cl-prin1 obj))))
 
+(defprotocol CommonLispfiable
+  (clj->cl [this]))
+
+(extend-protocol CommonLispfiable
+  Long (clj->cl [obj]
+         (cl-int obj))
+  Integer (clj->cl [obj]
+            (cl-int obj))
+  clojure.lang.Ratio (clj->cl [obj]
+                       (cl-ratio obj))
+  String (clj->cl [obj]
+           (cl-string obj))
+  clojure.lang.Symbol (clj->cl [obj]
+                        (cl-symbol obj))
+  clojure.lang.Keyword (clj->cl [obj]
+                         (cl-symbol obj))
+  Float (clj->cl [obj]
+          (cl-double obj))
+  Double (clj->cl [obj]
+           (cl-double obj))
+  Boolean (clj->cl [obj]
+            (if obj
+              cl-t
+              cl-nil))
+  nil (clj->cl [_]
+        cl-nil)
+  Object (clj->cl [obj]
+           obj))
+
+
+(defn cl-cons
+  "Builds a Common Lisp Cons object.
+  The Cons object is NOT nil terminated automatically, if you want to build a non-dotted cl list you will have to put a cl-nil at the end.
+  Example:
+  (cl-cons [1 2]) => (1 . 2) 
+  (cl-cons [1 2 3 cl-nil) => (1 2 3)
+  (cl-cons [[1 2] [3 4]) => ((1 . 2) 3 . 4) 
+  (cl-cons [[1 2] [3 4] cl-nil]) => ((1 . 2) (3 . 4)) 
+  "
+  ^Cons
+  [coll]
+  (letfn [(rec [obj]
+            (if (sequential? obj)
+              (cl-cons obj)
+              obj))]
+    (if (and (vector? coll)
+             (>= (count coll) 2))
+      (let [obj-coll (map #(if (cl-obj? %) 
+                             %
+                             (clj->cl %)) coll)]
+        (case (count obj-coll)
+          2 (Cons. ^LispObject (rec (first obj-coll)) ^LispObject (rec (second obj-coll)))
+          3 (Cons. ^LispObject (rec (first obj-coll)) (Cons. ^LispObject (rec (second obj-coll)) ^LispObject (rec (last obj-coll))))
+          (let [firstkons (Cons. ^LispObject (rec (first obj-coll)))
+                lastkons (Cons. ^LispObject (rec (-> obj-coll butlast ^LispObject (last))) ^LispObject (rec (last obj-coll)))]
+            (loop [[h & t :as newcoll] (-> coll rest butlast butlast)
+                   actualkons firstkons]
+              (let [newkons (Cons. ^LispObject (clj->cl (rec h)))]
+                (set! (.-cdr actualkons) newkons)
+                (if t
+                  (recur t newkons)
+                  (do (set! (.-cdr newkons) lastkons)
+                      firstkons)))))))
+      (throw (ex-info "Form should be a sequential and of size greater than 1!" {:form coll})))))
+
 (defprotocol Evaluatable
   (cl-evaluate [this]))
 
@@ -304,7 +369,14 @@
                  (Interpreter/initializeJLisp))
                (let [thread (LispThread/currentThread)
                      _ (.bindSpecial thread Symbol/DEBUGGER_HOOK AbcljUtils/_DEBUGGER_HOOK_FUNCTION)]
-                 (Lisp/eval obj *env* thread))))
+                 (Lisp/eval obj *env* thread)))
+  clojure.lang.Sequential (cl-evaluate
+                            [obj]
+                            (when-not (Interpreter/initialized)
+                              (Interpreter/initializeJLisp))
+                            (let [thread (LispThread/currentThread)
+                                  _ (.bindSpecial thread Symbol/DEBUGGER_HOOK AbcljUtils/_DEBUGGER_HOOK_FUNCTION)]
+                              (Lisp/eval (cl-cons obj) *env* thread))))
 
 (defn ->bool
   "Get boolean value of Common Lisp object"
@@ -349,70 +421,6 @@
 
   Object (cl->clj [obj]
            obj))
-
-(defprotocol CommonLispfiable
-  (clj->cl [this]))
-
-(extend-protocol CommonLispfiable
-  Long (clj->cl [obj]
-         (cl-int obj))
-  Integer (clj->cl [obj]
-            (cl-int obj))
-  clojure.lang.Ratio (clj->cl [obj]
-                       (cl-ratio obj))
-  String (clj->cl [obj]
-           (cl-string obj))
-  clojure.lang.Symbol (clj->cl [obj]
-                        (cl-symbol obj))
-  clojure.lang.Keyword (clj->cl [obj]
-                         (cl-symbol obj))
-  Float (clj->cl [obj]
-          (cl-double obj))
-  Double (clj->cl [obj]
-           (cl-double obj))
-  Boolean (clj->cl [obj]
-            (if obj
-              cl-t
-              cl-nil))
-  nil (clj->cl [_]
-        cl-nil)
-  Object (clj->cl [obj]
-           obj))
-
-(defn cl-cons
-  "Builds a Common Lisp Cons object.
-  The Cons object is NOT nil terminated automatically, if you want to build a non-dotted cl list you will have to put a cl-nil at the end.
-  Example:
-  (cl-cons [1 2]) => (1 . 2) 
-  (cl-cons [1 2 3 cl-nil) => (1 2 3)
-  (cl-cons [[1 2] [3 4]) => ((1 . 2) 3 . 4) 
-  (cl-cons [[1 2] [3 4] cl-nil]) => ((1 . 2) (3 . 4)) 
-  "
-  ^Cons
-  [coll]
-  (letfn [(rec [obj]
-            (if (sequential? obj)
-              (cl-cons obj)
-              obj))]
-    (if (and (vector? coll)
-             (>= (count coll) 2))
-      (let [obj-coll (map #(if (cl-obj? %) 
-                             %
-                             (clj->cl %)) coll)]
-        (case (count obj-coll)
-          2 (Cons. ^LispObject (rec (first obj-coll)) ^LispObject (rec (second obj-coll)))
-          3 (Cons. ^LispObject (rec (first obj-coll)) (Cons. ^LispObject (rec (second obj-coll)) ^LispObject (rec (last obj-coll))))
-          (let [firstkons (Cons. ^LispObject (rec (first obj-coll)))
-                lastkons (Cons. ^LispObject (rec (-> obj-coll butlast ^LispObject (last))) ^LispObject (rec (last obj-coll)))]
-            (loop [[h & t :as newcoll] (-> coll rest butlast butlast)
-                   actualkons firstkons]
-              (let [newkons (Cons. ^LispObject (clj->cl (rec h)))]
-                (set! (.-cdr actualkons) newkons)
-                (if t
-                  (recur t newkons)
-                  (do (set! (.-cdr newkons) lastkons)
-                      firstkons)))))))
-      (throw (ex-info "Form should be a sequential and of size greater than 1!" {:form coll})))))
 
 (defmacro with-cl
   "Run body as a Common Lisp program, the body should be quoted.

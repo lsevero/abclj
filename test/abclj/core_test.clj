@@ -106,4 +106,5 @@
   (testing
     (is (= 3 (cl->clj (cl-evaluate "(+ 1 2)"))))
     (is (= 3 (cl->clj (cl-evaluate (cl-cons [(cl-symbol 'cl/+) 1 2 cl-nil])))))
+    (is (= 3 (cl->clj (cl-evaluate ['cl/+ 1 2 nil]))))
     (is (= :EQUAL (cl->clj (cl-evaluate (cl-cons ['cl/if ['cl/= 1 1.0 nil] :equal :not-equal nil])))))))
