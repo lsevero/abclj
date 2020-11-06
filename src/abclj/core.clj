@@ -312,7 +312,6 @@
   Object (clj->cl [obj]
            obj))
 
-
 (defn cl-cons
   "Builds a Common Lisp Cons object.
   The Cons object is NOT nil terminated automatically, if you want to build a non-dotted cl list you will have to put a cl-nil at the end.
@@ -347,6 +346,14 @@
                   (do (set! (.-cdr newkons) lastkons)
                       firstkons)))))))
       (throw (ex-info "Form should be a sequential and of size greater than 1!" {:form coll})))))
+
+(defmethod print-method Cons
+  [^Cons form ^Writer w]
+  (.write w (format "#abclj/cl-cons %s" (prin1-to-string form))))
+
+(defmethod print-dup Cons
+  [^Cons form ^Writer w]
+  (.write w (format "#abclj/cl-cons %s" (prin1-to-string form))))
 
 (defprotocol Evaluatable
   (cl-evaluate [this]))
