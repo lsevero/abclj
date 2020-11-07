@@ -45,12 +45,12 @@ It provides both a compiler and a interpreter that can be used as scripting lang
   println) ;=> HI FROM CL, ARMED BEAR CLOJURE
 
 
-;partial support for quicklisp
-;(quicklisp works but the packages that depend on CFFI don't)
+;quicklisp support
 (require '[abclj.quicklisp :refer [quickload]])
 
-(quickload :trivial-http)
-(princ-to-string (with-cl '(trivial-http:http-get "http://lite.duckduckgo.com/lite/")))
+(quickload :trivial-http :drakma)
+(with-cl '(trivial-http:http-get "http://lite.duckduckgo.com/lite/"))
+(with-cl '(drakma:http-request "http://lisp.org/"))
 
 (defun fac2 (n)
   (reduce (function *) (loop for i from 1 to n collect i)))

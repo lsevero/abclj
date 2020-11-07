@@ -410,6 +410,26 @@
   {:pre [(is (cl-obj? obj))]}
   (.getBooleanValue obj))
 
+(defn cons->vec
+  "Converts a CL cons/list to a clojure vector.
+  Only works for nil terminated lists, not dotted ones"
+  [^Cons obj]
+  {:pre [(is (instance? Cons obj))]}
+  (-> obj .copyToArray vec))
+
+(defn dotted-pair?
+  "Check if cdr of obj is not nil"
+  [^Cons obj]
+  {:pre [(is (instance? Cons obj))]}
+  (-> obj .-cdr (= cl-nil)))
+
+(let [cl-last (getfunction 'cl/last)]
+  (defn dotted-list?
+  "Go to the last Cons of Cons and checks if .-cdr is nil"
+  [^Cons obj]
+  {:pre [(is (instance? Cons obj))]}
+  (->> obj (funcall cl-last) dotted-pair?)))
+
 (defn declojurify [coll]
   (letfn [(remove-ns [node]
             (if (symbol? node)
@@ -444,7 +464,6 @@
              (if (= "KEYWORD" (-> ^Symbol obj ^org.armedbear.lisp.Package (.getPackage) .getName))
                (-> ^Symbol obj .-name str keyword)
                (-> ^Symbol obj .-name str symbol))))
-
   Object (cl->clj [obj]
            obj))
 
@@ -478,12 +497,11 @@
    `(do (with-cl->clj ~headbody)
         (with-cl->clj ~@restbody))))
 
-(defn cons->vec
-  "Converts a CL cons/list to a clojure vector.
-  Lists will be cl-nil terminated, dotted conses will be not."
-  [^Cons obj]
-  {:pre [(is (instance? Cons obj))]}
-  (-> obj .copyToArray vec))
+(defn list-all-packages
+  "Return a Cons with all visible CL packages"
+  ^Cons
+  []
+  (with-cl->clj '(list-all-packages)))
 
 (defn alist->map
   "Converts an assoc list to a clojure map.

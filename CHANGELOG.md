@@ -1,6 +1,15 @@
 # Change Log
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
+## [0.2.0] - 2020-11-06
+### Added
+- Upgraded ABCL version to 1.8.0
+- Added abcl-contrib to the dependencies
+- added print-method and print-dup for ComplexString
+- cl-symbol now supports strings (useful for symbols like cl:1+ that broke the Clj reader)
+- added dotted-pair? and dotted-list? predicates
+- added list-all-packages function
+
 ## [0.1.2] - 2020-11-06
 ### Added
 - print-method and print-dup for Cons
