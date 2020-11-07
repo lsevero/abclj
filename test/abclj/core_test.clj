@@ -128,3 +128,14 @@
     (is (= 3 (adding 1 2)))
     (is (= 2 (multiply 1 2)))
     (is (= 5 (blah 1 2)))))
+
+(deftest cl-cons->clj
+  (testing
+    (is (= '(2 3 4) (with-cl->clj
+                      '(mapcar (lambda (x) (+ x 1)) '(1 2 3)))))))
+
+(deftest clj->cl-cons
+  (testing
+      (is (= (let [cons (clj->cl (map inc [1 2 3]))]
+               (.-car ^Cons cons))
+             (cl-int 2)))))
