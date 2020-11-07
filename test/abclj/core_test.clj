@@ -128,3 +128,8 @@
     (is (= 3 (adding 1 2)))
     (is (= 2 (multiply 1 2)))
     (is (= 5 (blah 1 2)))))
+
+(deftest cl-cons->clj
+  (testing
+    (is (= '(2 3 4) (with-cl->clj
+                      '(mapcar (lambda (x) (+ x 1)) '(1 2 3)))))))

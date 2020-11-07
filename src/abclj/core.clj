@@ -464,6 +464,8 @@
              (if (= "KEYWORD" (-> ^Symbol obj ^org.armedbear.lisp.Package (.getPackage) .getName))
                (-> ^Symbol obj .-name str keyword)
                (-> ^Symbol obj .-name str symbol))))
+  Cons (cl->clj [obj]
+         (map cl->clj (cons->vec obj)))
   Object (cl->clj [obj]
            obj))
 
