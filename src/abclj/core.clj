@@ -305,6 +305,8 @@
 (defprotocol CommonLispfiable
   (clj->cl [this]))
 
+(declare cl-cons)
+
 (extend-protocol CommonLispfiable
   Long (clj->cl [obj]
          (cl-int obj))
@@ -328,6 +330,12 @@
               cl-nil))
   nil (clj->cl [_]
         cl-nil)
+  clojure.lang.LazySeq (clj->cl [obj]
+                         (letfn [(add-nil-cdr [v]
+                                   (if (seq? v)
+                                     (conj (vec v) cl-nil)
+                                     v))]
+                           (cl-cons (postwalk add-nil-cdr obj))))
   Object (clj->cl [obj]
            obj))
 

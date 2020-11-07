@@ -133,3 +133,9 @@
   (testing
     (is (= '(2 3 4) (with-cl->clj
                       '(mapcar (lambda (x) (+ x 1)) '(1 2 3)))))))
+
+(deftest clj->cl-cons
+  (testing
+      (is (= (let [cons (clj->cl (map inc [1 2 3]))]
+               (.-car ^Cons cons))
+             (cl-int 2)))))
