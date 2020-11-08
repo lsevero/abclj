@@ -10,7 +10,7 @@ lein run
 
 ## Comments
 
-The file `logic.clj` is basically a copy and paste from [Armed Bear
+The file `life.clj` is basically a copy and paste from [Armed Bear
 Sample
 Code](https://common-lisp.net/project/armedbear/doc/abcl-user.html) on
 `life.lisp` file. Which is amazing! The necessary modifications were:
