@@ -62,7 +62,7 @@ It provides both a compiler and a interpreter that can be used as scripting lang
 
 (discriminant 1 2 3)
 ```
-Also check the project tests.
+Also check the project tests and examples.
 
 ## The ultimate goal
 

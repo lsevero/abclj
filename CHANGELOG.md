@@ -1,7 +1,15 @@
 # Change Log
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](http://keepachangelog.com/).
 
-## [0.2.0] - 2020-11-06
+
+## [0.1.4] - 2020-11-08
+### Added
+- Added Common Lisp HashTable to the cl->clj protocol
+- Added IPersistentMap to the clj->cl protocol
+- added the 0 arity form of funcall
+- added a map->alist function
+
+## [0.1.3] - 2020-11-06
 ### Added
 - Upgraded ABCL version to 1.8.0
 - Added abcl-contrib to the dependencies
