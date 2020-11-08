@@ -112,6 +112,24 @@
     (is (= :EQUAL (cl->clj (cl-evaluate (cl-cons ['cl/if ['cl/= 1 1.0 nil] :equal :not-equal nil])))))
     (is (= :EQUAL (cl->clj (cl-evaluate (cl-cons (list 'cl/if (list 'cl/= 1 1.0 nil) :equal :not-equal nil))))))))
 
+(deftest cl->clj-test
+  (testing
+    (let [ht (with-cl
+               '(defparameter *m* (make-hash-table))
+               '(setf (gethash :a *m*) 1)
+               '(setf (gethash :b *m*) 2)
+               '(setf (gethash :c *m*) 3)
+               '(progn *m*))]
+      (is (= {:A 1 :B 2 :C 3} (cl->clj ht))))))
+
+(deftest clj->cl-test
+  (testing 
+    (let [ht (clj->cl {:a 1 :b 2 :c 3})]
+      (is (= #abclj/cl-int 1 (.get ht (cl-symbol 'keyword/a))))
+      (is (= #abclj/cl-int 2 (.get ht (cl-symbol 'keyword/b))))
+      (is (= #abclj/cl-int 3 (.get ht (cl-symbol 'keyword/c))))
+      (is (= nil (.get ht (cl-symbol 'keyword/d)))))))
+
 (defun adding (a b)
   (+ a b))
 

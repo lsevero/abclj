@@ -6,7 +6,7 @@
             [clojure.walk :refer [postwalk]])
   (:import [org.armedbear.lisp EndOfFile Stream StringInputStream LispThread Environment Interpreter Load LispObject
             Lisp LispInteger DoubleFloat SingleFloat AbstractString Symbol Ratio Nil Fixnum Packages SimpleString
-            Primitives SpecialBindingsMark Function Closure Cons JavaObject Complex Bignum ComplexString]
+            Primitives SpecialBindingsMark Function Closure Cons JavaObject Complex Bignum ComplexString HashTable]
            [abclj.java AbcljUtils]
            [java.io ByteArrayInputStream Writer]))
 
@@ -238,6 +238,9 @@
 
 (defn funcall
   "Call a CL function, kinda like the CL funcall"
+  ([^Function f]
+   {:pre [(is (cl-function? f))]}
+   (.execute f))
   ([^Function f arg]
    {:pre [(is (cl-function? f)) (is (or (cl-obj? arg)
                                         (cl-obj-array? arg)))]}
@@ -302,6 +305,8 @@
   [^SimpleString form ^Writer w]
   (.write w (format "#abclj/cl-string %s" (prin1-to-string form))))
 
+(declare map->alist)
+
 (defprotocol CommonLispfiable
   (clj->cl [this]))
 
@@ -328,6 +333,8 @@
               cl-nil))
   nil (clj->cl [_]
         cl-nil)
+  clojure.lang.IPersistentMap (clj->cl [obj]
+                                (postwalk clj->cl (map->alist obj)))
   Object (clj->cl [obj]
            obj))
 
@@ -439,6 +446,8 @@
                              remove-ns
                              )) coll)))
 
+(declare alist->map)
+
 (defprotocol Clojurifiable
   (cl->clj [this]))
 
@@ -464,8 +473,30 @@
              (if (= "KEYWORD" (-> ^Symbol obj ^org.armedbear.lisp.Package (.getPackage) .getName))
                (-> ^Symbol obj .-name str keyword)
                (-> ^Symbol obj .-name str symbol))))
+  HashTable (cl->clj [obj]
+              (postwalk cl->clj (alist->map (.getEntries obj))))
   Object (cl->clj [obj]
            obj))
+
+(defn alist->map
+  "Converts an assoc list to a clojure map.
+  Be aware that Common Lisp likes to upper-case things, so a cl keyword ':test' will be returned as :TEST"
+  [^Cons obj]
+  (->> obj
+       cons->vec
+       (map #(let [car (.-car ^Cons %)
+                   cdr (.-cdr ^Cons %)]
+               [(cl->clj car) (cl->clj cdr)]))
+       (into {})))
+
+(let [cl-make-hash-table (getfunction 'cl/make-hash-table)]
+  (defn map->alist
+    "Convests a clojure map to a Common Lisp Eql HashTable"
+    [m]
+    (let [^HashTable ht (funcall cl-make-hash-table)]
+      (doseq [[k v] m]
+        (.put ht (clj->cl k) (clj->cl v)))
+      ht)))
 
 (defmacro with-cl
   "Run body as a Common Lisp program, the body should be quoted.
@@ -502,17 +533,6 @@
   ^Cons
   []
   (with-cl->clj '(list-all-packages)))
-
-(defn alist->map
-  "Converts an assoc list to a clojure map.
-  Be aware that Common Lisp likes to upper-case things, so a cl keyword ':test' will be returned as :TEST"
-  [^Cons obj]
-  (->> obj
-       cons->vec
-       (map #(let [car (.-car ^Cons %)
-                   cdr (.-cdr ^Cons %)]
-               [(cl->clj car) (cl->clj cdr)]))
-       (into {})))
 
 (let [cl-coerce (getfunction 'cl/coerce)]
   (defn coerce
