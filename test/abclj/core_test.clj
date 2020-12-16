@@ -67,6 +67,8 @@
 
 (deftest set-get-var-test
   (testing
+    (is (= 123 (cl->clj (do (setvar (cl-symbol 'test) 123)
+                            (getvar (cl-symbol 'test))))))
     (is (= 123 (cl->clj (do (setvar 'test #abclj/cl-int 123)
                             (getvar 'test)))))))
 
@@ -76,6 +78,7 @@
                         (.findAccessibleSymbol "+")
                         .getSymbolFunction)]
       (is (= 3 (cl->clj (.execute +-cl-func #abclj/cl-int 1 #abclj/cl-int 2)))))
+    (is (= cl-t (funcall (getfunction (cl-symbol 'cl/stringp)) #abclj/cl-string "test")))
     (is (= -1.0 (cl->clj (.-realpart (funcall (getfunction 'cl/expt)
                                               #abclj/cl-complex [0 1]
                                               #abclj/cl-int 2)))))))
