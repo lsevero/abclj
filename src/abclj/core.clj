@@ -6,7 +6,8 @@
             [clojure.walk :refer [postwalk]])
   (:import [org.armedbear.lisp EndOfFile Stream StringInputStream LispThread Environment Interpreter Load LispObject
             Lisp LispInteger DoubleFloat SingleFloat AbstractString Symbol Ratio Nil Fixnum Packages SimpleString
-            Primitives SpecialBindingsMark Function Closure Cons JavaObject Complex Bignum ComplexString HashTable]
+            Primitives SpecialBindingsMark Function Closure Cons JavaObject Complex Bignum ComplexString HashTable
+            Pathname]
            [abclj.java AbcljUtils]
            [java.io ByteArrayInputStream Writer]))
 
@@ -14,6 +15,46 @@
 
 (def cl-t (Symbol/T))
 (def cl-nil Nil/NIL)
+
+(defprotocol Clojurifiable
+  (cl->clj [this]
+           "Try to convert a Common Lisp object to a equivalent Clj/Java object"))
+
+(defprotocol CommonLispfiable
+  (clj->cl [this]
+           "Try to convert a Clj/Java class to a equivalent Common Lisp object"))
+
+(defprotocol SetVar
+  (setvar [this obj]
+          "Set a value to a symbol.
+          The namespace on the symbol will be used as the CL package on the CL symbol.
+          If the package is nil then the package COMMON-LISP-USER will be used.
+          If object is not a LispObject then clj->cl will be called."))
+
+(defprotocol GetVar
+  (getvar [this]
+          "Get the symbol value.
+          The namespace on the symbol will be used as the CL package on the CL symbol.
+          If the package is nil then the package COMMON-LISP-USER will be used. 
+          "))
+
+(defprotocol SetFunction
+  (setfunction [this obj]
+               "Set a function to a symbol.
+               The namespace on the symbol will be used as the CL package on the CL symbol.
+               If the package is nil then the package COMMON-LISP-USER will be used. 
+               "))
+
+(defprotocol GetFunction
+  (getfunction [this]
+               "Get a function from a symbol
+               The namespace on the symbol will be used as the CL package on the CL symbol.
+               If the package is nil then the package COMMON-LISP-USER will be used. 
+               "))
+
+(defprotocol Evaluatable
+  (cl-evaluate [this]
+               "Evaluates the form on the Common lisp interpreter"))
 
 (defn cl-load
   "Execute the contents of the file f in the CL environment.
@@ -172,7 +213,6 @@
                        (.intern pkg name-form)))
     :else (throw (ex-info "Form should be a symbol, keyword or string!" {:form form}))))
 
-
 (defmethod print-method Symbol
   [^Symbol form ^Writer w]
   (.write w (cond
@@ -199,42 +239,37 @@
                                 (.getName pkg))
                               sname))))) 
 
-(defn setvar
-  "Set a value to a symbol.
-  The namespace on the symbol will be used as the CL package on the CL symbol.
-  If the package is nil then the package COMMON-LISP-USER will be used."
-  [sym ^LispObject obj]
-  {:pre [(is (symbol? sym)) (is (cl-obj? obj))]}
-  (.setSymbolValue (cl-symbol sym) obj)
-  obj)
+(extend-protocol SetVar
+  clojure.lang.Symbol (setvar [sym obj]
+                        (let [cl-obj (if (cl-obj? obj)
+                                       obj
+                                       (clj->cl obj))]
+                          (.setSymbolValue (cl-symbol sym) cl-obj)))
+  Symbol (setvar [sym obj]
+           (let [cl-obj (if (cl-obj? obj)
+                          obj
+                          (clj->cl obj))]
+             (.setSymbolValue sym cl-obj))))
 
-(defn getvar
-  "Get the symbol value.
-  The namespace on the symbol will be used as the CL package on the CL symbol.
-  If the package is nil then the package COMMON-LISP-USER will be used. 
-  "
-  [sym]
-  {:pre [(is (symbol? sym))]}
-  (.symbolValue (cl-symbol sym)))
+(extend-protocol GetVar
+  clojure.lang.Symbol (getvar [sym]
+                        (.symbolValue (cl-symbol sym)))
+  Symbol (getvar [sym]
+           (.symbolValue sym)))
 
-(defn setfunction
-  "Set a function to a symbol.
-  The namespace on the symbol will be used as the CL package on the CL symbol.
-  If the package is nil then the package COMMON-LISP-USER will be used. 
-  "
-  [sym func]
-  {:pre [(is (symbol? sym) (cl-function? func))]}
-  (let []
-    (.setSymbolFunction (cl-symbol sym) func)))
+(extend-protocol SetFunction
+  clojure.lang.Symbol (setfunction [sym func]
+                        {:pre [(is (cl-function? func))]}
+                        (.setSymbolFunction (cl-symbol sym) func))
+  Symbol (setfunction [sym func]
+           {:pre [(is (cl-function? func))]}
+           (.setSymbolFunction sym func)))
 
-(defn getfunction
-  "Get a function from a symbol
-  The namespace on the symbol will be used as the CL package on the CL symbol.
-  If the package is nil then the package COMMON-LISP-USER will be used. 
-  "
-  [sym]
-  {:pre [(is (symbol? sym))]}
-  (.getSymbolFunctionOrDie (cl-symbol sym)))
+(extend-protocol GetFunction
+  clojure.lang.Symbol (getfunction [sym]
+                        (.getSymbolFunctionOrDie (cl-symbol sym)))
+  Symbol (getfunction [sym]
+           (.getSymbolFunctionOrDie sym)))
 
 (defn funcall
   "Call a CL function, kinda like the CL funcall"
@@ -305,10 +340,23 @@
   [^SimpleString form ^Writer w]
   (.write w (format "#abclj/cl-string %s" (prin1-to-string form))))
 
-(declare map->alist)
+(defn cl-pathname
+  "Builds a Common Lisp Pathname"
+  [^String form]
+  (if (string? form)
+    (Pathname/create form)
+    (throw (ex-info "Form should be a string!" {:form form}))))
 
-(defprotocol CommonLispfiable
-  (clj->cl [this]))
+(let [cl-namestring (getfunction 'cl/namestring)]
+  (defmethod print-method Pathname
+    [^Pathname form ^Writer w]
+    (.write w (format "#abclj/cl-pathname %s" (prin1-to-string (funcall cl-namestring form)))))
+
+  (defmethod print-dup Pathname
+    [^Pathname form ^Writer w]
+    (.write w (format "#abclj/cl-pathname %s" (prin1-to-string (funcall cl-namestring form))))))
+
+(declare map->alist)
 
 (extend-protocol CommonLispfiable
   Long (clj->cl [obj]
@@ -381,9 +429,6 @@
   [^Cons form ^Writer w]
   (.write w (format "#abclj/cl-cons %s" (prin1-to-string form))))
 
-(defprotocol Evaluatable
-  (cl-evaluate [this]))
-
 (extend-protocol Evaluatable
   String (cl-evaluate
            [s]
@@ -448,8 +493,6 @@
 
 (declare alist->map)
 
-(defprotocol Clojurifiable
-  (cl->clj [this]))
 
 (extend-protocol Clojurifiable
   LispInteger (cl->clj [obj]
@@ -528,11 +571,12 @@
    `(do (with-cl->clj ~headbody)
         (with-cl->clj ~@restbody))))
 
-(defn list-all-packages
-  "Return a Cons with all visible CL packages"
-  ^Cons
-  []
-  (with-cl->clj '(list-all-packages)))
+(let [cl-list-all-packages (getfunction 'cl/list-all-packages)]
+  (defn list-all-packages
+    "Return a Cons with all visible CL packages"
+    ^Cons
+    []
+    (funcall cl-list-all-packages)))
 
 (let [cl-coerce (getfunction 'cl/coerce)]
   (defn coerce

@@ -53,6 +53,7 @@
     (is (->bool #abclj/cl-ratio 2/3))
     (is (->bool #abclj/cl-complex [1 1]))
     (is (->bool #abclj/cl-string "abc"))
+    (is (->bool #abclj/cl-pathname "/tmp/test/file.txt"))
     (is (->bool (cl-symbol :test)))
     (is (->bool (cl-symbol 'test)))
     (is (false? (->bool cl-nil)))))
