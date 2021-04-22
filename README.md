@@ -67,7 +67,8 @@ Also check the project tests and examples.
 ## The ultimate goal
 
 The reason I wanted to see Clojure and Common Lisp working with each other was to use CL programs/libraries on Clojure, especially Maxima and ACL2.
-Since ABCL already compiles and runs Maxima it should be possible but we are very far from it 🤷.
+~~Since ABCL already compiles and runs Maxima it should be possible but we are very far from it 🤷.~~
+I've got ABCLJ working with maxima on the project [clj-maxima](https://github.com/lsevero/clj-maxima)
 
 ## License
 
