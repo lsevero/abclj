@@ -253,9 +253,9 @@
 
 (extend-protocol GetVar
   clojure.lang.Symbol (getvar [sym]
-                        (.symbolValue (cl-symbol sym)))
+                        (.getSymbolValue (cl-symbol sym)))
   Symbol (getvar [sym]
-           (.symbolValue sym)))
+           (.getSymbolValue sym)))
 
 (extend-protocol SetFunction
   clojure.lang.Symbol (setfunction [sym func]
@@ -462,13 +462,6 @@
   {:pre [(is (cl-obj? obj))]}
   (.getBooleanValue obj))
 
-(defn cons->vec
-  "Converts a CL cons/list to a clojure vector.
-  Only works for nil terminated lists, not dotted ones"
-  [^Cons obj]
-  {:pre [(is (instance? Cons obj))]}
-  (-> obj .copyToArray vec))
-
 (defn dotted-pair?
   "Check if cdr of obj is not nil"
   [^Cons obj]
@@ -480,7 +473,14 @@
   "Go to the last Cons of Cons and checks if .-cdr is nil"
   [^Cons obj]
   {:pre [(is (instance? Cons obj))]}
-  (->> obj (funcall cl-last) dotted-pair?)))
+  (not (->> obj (funcall cl-last) dotted-pair?))))
+
+(defn cons->vec
+  "Converts a CL cons/list to a clojure vector.
+  Only works for nil terminated lists, not dotted ones"
+  [^Cons obj]
+  {:pre [(is (instance? Cons obj)) (is (not (dotted-list? obj)))]}
+  (-> obj .copyToArray vec))
 
 (defn declojurify [coll]
   (letfn [(remove-ns [node]
